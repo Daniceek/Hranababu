@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Příprava databáze</title>
+</head>
+<script>
+    function copyInfo() {
+        alert("Příkaz zkopírován do schránky (clipboardu).");
+    }
+
+    function mySQL() {
+        let uri = document.getElementById("uri").value.trim();
+        let server = document.getElementById("mysql_server").value;
+        let port = document.getElementById("mysql_port").value;
+
+        if (uri.startsWith("ssh://")) {
+            uri = uri.substr(6);
+        }
+        let arr = uri.split(":");
+        let s = `ssh -L 127.0.0.1:${port}:${server}:${port} -p ${arr[1]} ${arr[0]}`;
+        let e = document.getElementById("mysql_tunel");
+        e.value = s;
+        e.select();
+        document.execCommand("copy");
+        //e.setSelectionRange(0, 0);
+        setTimeout(copyInfo, 100);
+    }
+
+</script>
+<body>
+
+<h1>Příprava databáze</h1>
+
+Ve své databázi založte tabulky pomocí <a href="./create_tables.sql" target="_blank">create_tables.sql</a> a
+do rootu svého projektu vložte a upravte konfiguraci <a href="../app-config.json" target="_blank">app-config.json</a>.<br><br>
+Pokud se připojujete na MySQL/MariaDB na Roští.cz, tak v konfiguraci bude <b>"host": "localhost", "port": 3306,</b> <b>"user"</b>
+a <b>"database"</b> jsou stejné hodnoty odpovídající názvu vaší databáze. <span style="color: red">Konfiguraci nedávejte zálohovat do veřejného projektu na GitHubu!</span><br>
+Také si podle údajů z <a href="https://admin.rosti.cz" target="_blank">admin.rosti.cz</a> vygenerujte tunelovací příkaz:<br>
+<table>
+    <tr>
+        <td colspan="2"><b>Aplikace</b></td>
+    </tr>
+    <tr>
+        <td style="text-align: right">SSH spojení - URI:</td>
+        <td><input type="text" id="uri" size="40"> (např. <b>ssh://app@node-12.rosti.cz:16185</b>)
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2"><b>Úložiště|MariaDB/MySQL databáze</b></td>
+    </tr>
+    <tr>
+        <td style="text-align: right">Server:</td>
+        <td><input type="text" id="mysql_server" value="storeX.rosti.cz"></td>
+    </tr>
+    <tr>
+        <td style="text-align: right">Server port:</td>
+        <td><input type="number" id="mysql_port" value="3306"></td>
+    </tr>
+    <tr>
+        <td style="text-align: right"><input type="button" value="Příkaz pro tunelování >>>" style="font-weight: bold"
+                                                       onclick="mySQL()"></td>
+        <td><input type="text" id="mysql_tunel" size="60"></td>
+    </tr>
+</table>
+Vygenerovaný příkaz spusťte v terminálu WebStorm, napoprvé potvrďte SHA klíč a zadejte heslo. Pak se bude možné vzdáleně připojit k databázi na
+Roští.cz. Příkaz nemusíte příště generovat znovu, stačí prolistovat historii terminálu pomocí klávesy [šipka nahoru].<br>
+<br>
+Po restartu aplikace pak můžete vygenerovat náhodné studenty do tříd zavoláním <a href="http://localhost:8080/dbgen"
+                                                                                  target="_blank">localhost:8080/dbgen</a>.
+
+
+</body>
+</html>
