@@ -5,7 +5,7 @@
     <title>Příklad použití modulu spaserver</title>
     <script>
         const HOST = window.location.protocol + "//" + window.location.hostname + ((window.location.port) ? ":" + window.location.port : "");
-
+        const WS_HOST = "ws://" + window.location.hostname + ((window.location.port) ? ":" + window.location.port : "");
         function ukazChybu(e) {
             console.error('Error:', e.toString());
             let s;
@@ -16,7 +16,6 @@
             }
             alert(s);
         }
-
         function ukazDen() {
             let url = `${HOST}/denvtydnu`;
             fetch(url).then(function (response) {
@@ -30,193 +29,87 @@
             });
         }
 
-        function ukazCas() {
-            let url = `${HOST}/cas`;
+
+        let connection;
+        let cnv,ctx;
+        let hrac = {};
+        hrac.up = false;
+        hrac.down = false;
+        hrac.left = false;
+        hrac.right = false;
+        function pripojitDoHry() {
+            let jm = document.getElementById("jmeno").value;
+            let url = `${HOST}/hraci/pripojit?jmeno=`+jm;
             fetch(url).then(function (response) {
                 response.text().then(function (text) {
                     let obj = JSON.parse(text);
-                    document.getElementById("cas").innerHTML = obj.cas;
+                    hrac.uid = obj.uid;
+                    console.log("uid: "+hrac.uid);
+                    setInterval(posliPosunHrace, 10);
                 }).catch((error) => {
                     ukazChybu(error);
                 });
             });
         }
+            function spustPoNacteni() {
+                ukazDen();
 
-        function spustPoNacteni() {
-            ukazDen();
-            setInterval(ukazCas, 1000);
+                cnv = document.getElementById("platno");
+                ctx = cnv.getContext("2d");
 
-            let dt = new Date();
-            dt.setMonth(11); //prosinec
-            dt.setDate(31); //Silvestr
-            document.getElementById("datum2").valueAsDate = dt;
-            ukazDen2();
-        }
-
-        function ukazDen2() {
-            let dt = document.getElementById("datum2").valueAsDate;
-            if (!dt) return;
-            let opt = null;
-            let url = `${HOST}/denvtydnu`;
-            if (document.getElementById("GET").checked) {
-                url = `${url}?r=${dt.getFullYear()}&m=${dt.getMonth() + 1}&d=${dt.getDate()}`;
-            } else {
-                let body = {"r": dt.getFullYear(), "m": dt.getMonth() + 1, "d": dt.getDate()};
-                opt = {"method": "POST", "body": JSON.stringify(body)};
-            }
-            fetch(url, opt).then(function (response) {
-                response.text().then(function (text) {
-                    let obj = JSON.parse(text);
-                    document.getElementById("den2").innerHTML = obj.den.toLowerCase();
-                    document.getElementById("datum2").innerHTML = obj.datum;
-                }).catch((error) => {
-                    ukazChybu(error);
-                });
-            });
-        }
-
-        function dbTridy() {
-            let url = `${HOST}/db/tridy`;
-            fetch(url).then(function (response) {
-                response.text().then(function (text) {
-                    let obj = JSON.parse(text);
-                    if (obj.error) {
-                        alert(obj.error);
-                        let s = `<a href="./db-setup/index.html" target="_blank">Příprava databáze</a>`;
-                        document.getElementById("div_tridy").innerHTML = s;
-                    } else {
-                        let s = `Třídy: <select id="tridy" onchange="dbStudenti()">`;
-                        s += `<option value="-">- nic -</option>`;
-                        s += `<option value="">Vše</option>`;
-                        for (let t of obj.tridy) {
-                            s += `<option value="${t.id}">${t.rocnik}.${t.oznaceni}</option>`;
-                        }
-                        s += `</select>`;
-                        s += `&nbsp;&nbsp;<input type="text" id="jmeno" placeholder="jméno"><input type="text" id="prijmeni" placeholder="příjmení"><input type="button" value="Uložit" onclick="pridejStudenta()">`;
-                        s += `<br><input type="text" id="vyhledat"><input type="button" value="Vyhledat" onclick="dbStudenti()">`;
-                        document.getElementById("div_tridy").innerHTML = s;
+                connection = new WebSocket(WS_HOST);
+                connection.onmessage = e => {
+                    let hraci = JSON.parse(e.data);
+                    ctx.clearRect(0,0,cnv.width,cnv.height);
+                    for (let h of hraci) {
+                        ctx.beginPath();
+                        ctx.fillStyle = h.c;
+                        ctx.arc(h.x,h.y,h.r,0,6.29);
+                        ctx.fill();
+                        ctx.strokeStyle = "black";
+                        ctx.strokeText(h.jmeno, h.x+h.r, h.y);
                     }
-                }).catch((error) => {
-                    ukazChybu(error);
-                });
-            });
-        }
-        function smazStudenta(id) {
-            let url = `${HOST}/db/smazStudenta?id=${id}`;
-            fetch(url).then(function (response) {
-                response.text().then(function (text) {
-                    let obj = JSON.parse(text);
-                    if (obj.error) {
-                        document.getElementById("div_studenti").innerHTML = obj.error;
-                    } else {
-                        dbStudenti();
-                    }
-                }).catch((error) => {
-                    ukazChybu(error);
-                });
-            });
-        }
+                };
+            }
 
-        function pridejStudenta() {
-            let t = document.getElementById("tridy").value;
-            if (!t || t == "-") { //vse nebo nic
-                document.getElementById("div_studenti").innerHTML = "";
-                return;
+            function posliPosunHrace() {
+                if (hrac.up || hrac.down || hrac.left || hrac.right) { //aby se zbytecne neposilalo
+                    connection.send(JSON.stringify(hrac));
+                }
             }
-            let url = `${HOST}/db/pridejStudenta?trida=${t}`;
-            url += "&jmeno=" + document.getElementById("jmeno").value;
-            url += "&prijmeni=" + document.getElementById("prijmeni").value;
-            fetch(url).then(function (response) {
-                response.text().then(function (text) {
-                    let obj = JSON.parse(text);
-                    if (obj.error) {
-                        document.getElementById("div_studenti").innerHTML = obj.error;
-                    } else {
-                        dbStudenti();
-                    }
-                }).catch((error) => {
-                    ukazChybu(error);
-                });
-            });
-        }
-        let edit_id; //id editovaneho studenta
-        function upravitStudenta(id, jmeno, prijmeni) {
-            edit_id = id;
-            document.getElementById("jmeno").value = jmeno;
-            document.getElementById("prijmeni").value = prijmeni;
-        }
-        function ulozStudenta() {
-            let url = `${HOST}/db/upravStudenta?id=${edit_id}`;
-            url += "&jmeno=" + document.getElementById("jmeno").value;
-            url += "&prijmeni=" + document.getElementById("prijmeni").value;
-            url += "&trida=" + document.getElementById("tridy").value;
-            fetch(url).then(function (response) {
-                response.text().then(function (text) {
-                    let obj = JSON.parse(text);
-                    if (obj.error) {
-                        document.getElementById("div_studenti").innerHTML = obj.error;
-                    } else {
-                        dbStudenti();
-                    }
-                }).catch((error) => {
-                    ukazChybu(error);
-                });
-            });
-        }
-
-        function dbStudenti() {
-            document.getElementById("jmeno").value = "";
-            document.getElementById("prijmeni").value = "";
-            let url = `${HOST}/db/studenti?`;
-            let t = document.getElementById("tridy").value;
-            if (t == "-") { //nic
-                document.getElementById("div_studenti").innerHTML = "";
-                return;
+            function setMove(event, onoff) {
+                if (event.key === "ArrowUp") {
+                    hrac.up = onoff;
+                }
+                if (event.key === "ArrowDown") {
+                    hrac.down = onoff;
+                }
+                if (event.key === "ArrowLeft") {
+                    hrac.left = onoff;
+                }
+                if (event.key === "ArrowRight") {
+                    hrac.right = onoff;
+                }
             }
-            if (t) {
-                url += "&trida=" + t;
+            function onKeyDown(event) {
+                setMove(event, true);
             }
-            let txt = document.getElementById("vyhledat").value;
-            if (txt) {
-                url += "&text=" + txt;
+            function onKeyUp(event) {
+                setMove(event, false);
             }
-            fetch(url).then(function (response) {
-                response.text().then(function (text) {
-                    let obj = JSON.parse(text);
-                    if (obj.error) {
-                        document.getElementById("div_studenti").innerHTML = obj.error;
-                    } else {
-                        let s = ``;
-                        for (let st of obj.studenti) {
-                            s += `[<a href="JavaScript:smazStudenta(${st.id})">X</a>] <a href="JavaScript:upravitStudenta(${st.id},'${st.jmeno}','${st.prijmeni}')">${st.prijmeni} ${st.jmeno}</a> (${st.rocnik}.${st.oznaceni_tridy}) ${st.cislo_podle_tridnice}<br>`;
-                        }
-                        document.getElementById("div_studenti").innerHTML = s;
-                    }
-                }).catch((error) => {
-                    ukazChybu(error);
-                });
-            });
-        }
-
     </script>
 </head>
-<body onload="spustPoNacteni()">
+<body onload="spustPoNacteni()" onkeydown="onKeyDown(event)" onkeyup="onKeyUp(event)">
 
 <h1>Příklad použití modulu <a href="https://github.com/liborsvejda/spaserver" target="_blank">spaserver</a></h1>
 
-Dnes je <span id="den">...</span> <span id="datum">...</span>. Čas na serveru je <span id="cas">...</span>.
+Dnes je <span id="den">...</span> <span id="datum">...</span>.
 <br><br>
-Použiju metodu <input type="radio" name="metoda" id="GET" checked="checked">GET nebo <input type="radio" name="metoda"
-                                                                                            id="POST">POST a zjistím, že
-dne <input type="date" id="datum2" onchange="ukazDen2()"> byl(a/o)/bude <span id="den2">...</span>.
+<img src="res/nodejs.png" height="32" title="obrázek">
 <br><br>
-<img src="res/nodejs.png" title="obrázek">
 
-<h2>Příklad použití MySQL - školní třídy a studenti</h2>
-<input type="button" onclick="ulozStudenta()" value="Upravit">
-
-<div id="div_tridy"><input type="button" value="Načti třídy" onclick="dbTridy()"></div>
-<div id="div_studenti"></div>
+Jméno: <input type="text" id="jmeno"><input type="button" value="Připojit do hry" onclick="pripojitDoHry()"><br>
+<canvas id="platno" width="800" height="600" style="background-color: #d0d0d0"></canvas>
 
 </body>
 </html>
