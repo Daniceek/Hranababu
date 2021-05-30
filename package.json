@@ -16,6 +16,6 @@
     "mysql": "^2.18.1",
     "spaserver": "git+https://github.com/liborsvejda/spaserver.git",
     "uniqid": "^5.2.0",
-    "ws": "^7.2.3"
+    "ws": "^7.4.6"
   }
 }
